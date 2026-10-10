@@ -66,7 +66,7 @@ try {
         IntegrityRechecked = $false
         MutationPerformed = $false
         Limitation = 'No archive hash, password, extraction, import, cloud-presence, or application validation was performed.'
-    } | Format-List
+    }
 
     $exitCode = if ($due) { 2 } else { 0 }
 }
