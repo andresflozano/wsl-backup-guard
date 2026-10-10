@@ -1,0 +1,17 @@
+*.7z
+*.tar
+*.tar.*
+*.vhd
+*.vhdx
+*.partial
+*.lock
+*.log
+*.sha256
+!examples/*.sha256
+coverage/
+TestResults/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.local.json

@@ -1,0 +1,15 @@
+{
+  "SchemaVersion": 1,
+  "Distro": "Ubuntu",
+  "RetainedArchive": "C:\\Backups\\WSL\\Ubuntu-snapshot-example.7z",
+  "ArchiveFileName": "Ubuntu-snapshot-example.7z",
+  "Bytes": 123456789,
+  "SHA256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  "EncryptionFormat": "7zAES",
+  "EncryptionVerified": false,
+  "ArchiveIntegrityTestPassed": false,
+  "RestoreTestPerformed": false,
+  "OffDeviceCopyVerified": false,
+  "CreatedUtc": "2026-01-01T00:00:00Z",
+  "Limitation": "Synthetic example. No operational validation was performed."
+}
