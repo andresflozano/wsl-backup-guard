@@ -46,4 +46,4 @@ if ($archiveExists) {
     } else {
         'Archive presence and size were evaluated. SHA-256, password, and restore behavior were not tested.'
     }
-} | Format-List
+}

@@ -5,11 +5,9 @@ BeforeAll {
 Describe 'Test-WslBackupManifest' {
     BeforeEach {
         $testDirectory = Join-Path $TestDrive 'manifest-validation'
-
         if (Test-Path -LiteralPath $testDirectory) {
             Remove-Item -LiteralPath $testDirectory -Recurse -Force -ErrorAction Stop
         }
-
         New-Item -ItemType Directory -Path $testDirectory -ErrorAction Stop | Out-Null
 
         $archivePath = Join-Path $testDirectory 'Ubuntu-snapshot-example.7z'
@@ -27,26 +25,28 @@ Describe 'Test-WslBackupManifest' {
             CreatedUtc = '2026-01-01T00:00:00Z'
             Limitation = 'Synthetic fixture. No operational recovery claim.'
         }
-
         $manifest | ConvertTo-Json | Set-Content -LiteralPath $manifestPath -Encoding UTF8
     }
 
-    It 'reports archive presence and matching size without recomputing the hash' {
-        $output = & $scriptUnderTest -ManifestPath $manifestPath | Out-String
+    It 'returns structured archive evidence without recomputing the hash' {
+        $result = & $scriptUnderTest -ManifestPath $manifestPath
 
-        $output | Should -Match 'ManifestReadable\s*:\s*True'
-        $output | Should -Match 'ArchiveExists\s*:\s*True'
-        $output | Should -Match 'SizeMatches\s*:\s*True'
-        $output | Should -Match 'HashRecomputed\s*:\s*False'
-        $output | Should -Match 'MutationPerformed\s*:\s*False'
+        $result | Should -BeOfType [pscustomobject]
+        $result.ManifestReadable | Should -BeTrue
+        $result.ArchiveExists | Should -BeTrue
+        $result.SizeMatches | Should -BeTrue
+        $result.HashRecomputed | Should -BeFalse
+        $result.HashMatches | Should -BeNullOrEmpty
+        $result.MutationPerformed | Should -BeFalse
     }
 
     It 'recomputes and matches the archive SHA256 when requested' {
-        $output = & $scriptUnderTest -ManifestPath $manifestPath -RecomputeArchiveHash | Out-String
+        $result = & $scriptUnderTest -ManifestPath $manifestPath -RecomputeArchiveHash
 
-        $output | Should -Match 'HashRecomputed\s*:\s*True'
-        $output | Should -Match 'HashMatches\s*:\s*True'
-        $output | Should -Match 'MutationPerformed\s*:\s*False'
+        $result.HashRecomputed | Should -BeTrue
+        $result.HashMatches | Should -BeTrue
+        $result.CalculatedSHA256 | Should -Be $archiveHash
+        $result.MutationPerformed | Should -BeFalse
     }
 
     It 'reports a size mismatch when manifest bytes differ from the archive' {
@@ -54,10 +54,10 @@ Describe 'Test-WslBackupManifest' {
         $manifest.Bytes = [int64]$manifest.Bytes + 1
         $manifest | ConvertTo-Json | Set-Content -LiteralPath $manifestPath -Encoding UTF8
 
-        $output = & $scriptUnderTest -ManifestPath $manifestPath | Out-String
+        $result = & $scriptUnderTest -ManifestPath $manifestPath
 
-        $output | Should -Match 'ArchiveExists\s*:\s*True'
-        $output | Should -Match 'SizeMatches\s*:\s*False'
+        $result.ArchiveExists | Should -BeTrue
+        $result.SizeMatches | Should -BeFalse
     }
 
     It 'reports a hash mismatch when the recorded SHA256 is incorrect' {
@@ -65,10 +65,10 @@ Describe 'Test-WslBackupManifest' {
         $manifest.SHA256 = 'A' * 64
         $manifest | ConvertTo-Json | Set-Content -LiteralPath $manifestPath -Encoding UTF8
 
-        $output = & $scriptUnderTest -ManifestPath $manifestPath -RecomputeArchiveHash | Out-String
+        $result = & $scriptUnderTest -ManifestPath $manifestPath -RecomputeArchiveHash
 
-        $output | Should -Match 'HashRecomputed\s*:\s*True'
-        $output | Should -Match 'HashMatches\s*:\s*False'
+        $result.HashRecomputed | Should -BeTrue
+        $result.HashMatches | Should -BeFalse
     }
 
     It 'throws when a required manifest property is missing' {
@@ -82,7 +82,6 @@ Describe 'Test-WslBackupManifest' {
 
     It 'throws when the manifest file does not exist' {
         $missingManifest = Join-Path $testDirectory 'missing.json'
-
         { & $scriptUnderTest -ManifestPath $missingManifest } |
             Should -Throw '*Manifest does not exist*'
     }
@@ -93,10 +92,9 @@ Describe 'Test-WslBackupManifest' {
 
         & $scriptUnderTest -ManifestPath $manifestPath -RecomputeArchiveHash | Out-Null
 
-        $archiveHashAfter = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash
-        $manifestHashAfter = (Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).Hash
-
-        $archiveHashAfter | Should -Be $archiveHashBefore
-        $manifestHashAfter | Should -Be $manifestHashBefore
+        (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash |
+            Should -Be $archiveHashBefore
+        (Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).Hash |
+            Should -Be $manifestHashBefore
     }
 }
