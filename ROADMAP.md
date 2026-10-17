@@ -67,6 +67,21 @@ This roadmap records maturity gates, not delivery promises. Each stage begins on
 - No known CI warnings
 - Release notes make no production-readiness or operational-recovery claims beyond evidence
 
+## Validated operating workflow
+
+- [x] Validate daily and current-user sign-in health-check scheduling.
+- [x] Validate due-state detection and freshness reset after a new backup.
+- [x] Document the guided export, encryption, off-device validation, manifest, and retention workflow.
+
+### Next safe increments
+
+- [ ] Add a generic Scheduled Task registration helper using placeholders.
+- [ ] Add a Scheduled Task removal and repair helper.
+- [ ] Add a synthetic scheduled-task export fixture.
+- [ ] Define a JSON Schema for validation manifests.
+- [ ] Add synthetic manifest-validator tests.
+- [ ] Define an isolated restore-rehearsal contract.
+
 ## Deferred by design
 
 - Unattended password handling

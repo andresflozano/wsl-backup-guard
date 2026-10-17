@@ -66,3 +66,29 @@ Initial public scaffold. No release or production-readiness claim is made.
 ## License
 
 MIT. See [`LICENSE`](LICENSE).
+
+## Validated operating workflow
+
+The read-only health evaluator is now part of a validated personal WSL backup workflow.
+
+The operating model combines:
+
+- encrypted-backup discovery;
+- checksum-record validation;
+- a configurable freshness threshold;
+- deterministic exit codes;
+- daily and current-user sign-in health checks;
+- deliberate WSL shutdown before export;
+- interactive AES archive encryption;
+- encrypted archive testing;
+- SHA-256 reconciliation;
+- off-device byte and hash comparison;
+- cloud-presence confirmation;
+- manifest-based validation;
+- retention only after all required gates pass.
+
+The scheduled task runs the read-only health wrapper only. It does not stop WSL, create backups, handle passwords, copy archives, or delete retention candidates.
+
+See docs/validated-personal-workflow.md.
+
+This validation does not prove isolated restoration or post-restore project correctness.
