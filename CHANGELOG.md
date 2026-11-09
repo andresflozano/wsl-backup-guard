@@ -14,6 +14,12 @@ The project has not published a versioned release. Entries remain under `Unrelea
 - Documented missed-schedule recovery through Windows Task Scheduler.
 - Documented TAR, interactive encryption, SHA-256, off-device-copy, manifest, and retention gates.
 
+### Changed
+
+- Encryption and archive testing are documented as command-line steps using the 7-Zip interactive password prompt. The GUI is no longer required.
+- Added cloud-copy verification by releasing the synchronized copy and hashing the rehydrated file.
+- Added rehydrated cloud-copy verification to the retention gate.
+
 ### Validation
 
 - Freshness transitioned deterministically from healthy to due at the configured threshold.
@@ -21,11 +27,13 @@ The project has not published a versioned release. Entries remain under `Unrelea
 - The encrypted archive passed an interactive password test.
 - Local and off-device archive byte counts and SHA-256 matched.
 - The validation manifest matched between local and off-device copies.
+- A command-line-encrypted archive passed its test, and its cloud copy matched bytes and SHA-256 after rehydration.
 
 ### Limitations
 
 - No isolated restore rehearsal was performed for this snapshot.
 - No post-restore project execution was validated.
+- Rehydration verification has been performed once.
 - Password handling, WSL termination, retention deletion, and cloud mutation remain deliberately manual.
 
 ### Changed
