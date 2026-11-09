@@ -33,12 +33,13 @@ Daily and sign-in health check
 → operator saves work and stops workloads
 → operator stops the WSL distribution
 → create TAR export and export evidence
-→ encrypt interactively with AES
+→ encrypt with AES from the command line, entering the password at an interactive prompt
 → test encrypted archive interactively
 → create and reconcile SHA-256
 → copy encrypted archive and checksum off-device
 → compare byte count and SHA-256
 → confirm cloud web presence
+→ verify the cloud copy by releasing local content and hashing the rehydrated file
 → create and hash a validation manifest
 → apply retention only after every required gate passes
 ```
@@ -67,10 +68,98 @@ Daily and sign-in health check
 - encrypted archive testing;
 - off-device copy review;
 - cloud web-presence confirmation;
+- cloud-copy rehydration verification;
 - retention deletion;
 - restore rehearsal.
 
 The manual boundary prevents routine health automation from silently becoming a destructive or credential-handling workflow.
+
+## Command-line encryption and cloud verification
+
+Encryption, archive testing, and cloud verification run from Windows PowerShell. No GUI step is required, and the password is never placed in a command, script, log, or task configuration.
+
+### Encrypt and test
+
+`7z.exe` with `-p` and no value prompts for the password without echoing it. `-mhe=on` encrypts archive headers, so file names are hidden.
+
+```powershell
+& {
+    $ErrorActionPreference = "Stop"
+
+    $SevenZip = "C:\Program Files\7-Zip\7z.exe"
+    $BackupRoot = Join-Path $env:USERPROFILE "WSL-Backups"
+    $Stem = "SNAPSHOT_STEM"
+    $ExpectedTarHash = "TAR_SHA256_FROM_EXPORT"
+
+    $Tar = Join-Path $BackupRoot "$Stem.tar"
+    $Archive = Join-Path $BackupRoot "$Stem.7z"
+
+    if (Test-Path -LiteralPath $Archive) { throw "Archive already exists: $Archive" }
+
+    $TarHash = (Get-FileHash -LiteralPath $Tar -Algorithm SHA256).Hash
+    if ($TarHash -ne $ExpectedTarHash) { throw "TAR hash differs from the export result. Stop." }
+
+    & $SevenZip a -t7z -mx=3 -mhe=on -p $Archive $Tar
+    if ($LASTEXITCODE -ne 0) { throw "Archive creation failed. Stop." }
+
+    & $SevenZip t $Archive
+    if ($LASTEXITCODE -ne 0) { throw "Archive test failed. Stop." }
+}
+```
+
+Replace `SNAPSHOT_STEM` and `TAR_SHA256_FROM_EXPORT` with values from the export output before running.
+
+### Verify the cloud copy
+
+After the synchronized copy finishes uploading, release its local content and hash it. Reading a released file forces the OneDrive client to download it from the cloud, so a matching hash shows the cloud holds a matching copy.
+
+Preconditions:
+
+- the original archive still exists outside the synchronized folder;
+- the OneDrive client reports the folder as up to date.
+
+```powershell
+& {
+    $ErrorActionPreference = "Stop"
+
+    $Stem = "SNAPSHOT_STEM"
+    $ExpectedHash = "ARCHIVE_SHA256"
+    $ExpectedBytes = 0   # replace with the archive size in bytes
+    $Cloud = Join-Path $env:OneDriveConsumer "Backups\WSL\$Stem.7z"
+
+    if ($ExpectedBytes -le 0) { throw "Set ExpectedBytes before running." }
+
+    attrib.exe +U -P "$Cloud"
+
+    $RecallFlag = 0x400000
+    $Released = $false
+    for ($i = 0; $i -lt 30; $i++) {
+        $Item = Get-Item -LiteralPath $Cloud
+        if (([int]$Item.Attributes) -band $RecallFlag) {
+            $Released = $true
+            break
+        }
+        Start-Sleep -Seconds 2
+    }
+    if (-not $Released) { throw "Local content was not released. Nothing verified." }
+
+    $Hash = (Get-FileHash -LiteralPath $Cloud -Algorithm SHA256).Hash
+    $Bytes = (Get-Item -LiteralPath $Cloud).Length
+
+    [pscustomobject]@{
+        CloudUploadVerified = ($Bytes -eq $ExpectedBytes -and $Hash -eq $ExpectedHash)
+    } | Format-List
+}
+```
+
+### Observed behavior
+
+In one validated run on an unstable connection, three browser downloads of a multi-gigabyte archive stopped early and were saved under the expected file name. Size and hash comparison rejected all three. Rehydration through the OneDrive client then succeeded on the first attempt. This is a single observation, not a general comparison of download methods.
+
+### Operator notes
+
+- Run PowerShell blocks only at a `PS C:\...>` prompt. Pasting them into a Linux shell fails and runs nothing.
+- Long terminal pastes can be corrupted. Prefer running saved scripts, and re-verify state instead of re-running a partially executed block.
 
 ## Health states
 
@@ -136,6 +225,7 @@ A completed encrypted snapshot records:
 - source-versus-destination byte comparison;
 - source-versus-destination SHA-256 comparison;
 - cloud web-presence observation;
+- cloud rehydration verification result, bytes, and SHA-256;
 - manifest SHA-256;
 - restore-test status;
 - project-validation status;
@@ -152,6 +242,7 @@ The unencrypted TAR may be removed only after all required controls pass:
 - off-device archive SHA-256 matched;
 - checksum-file copy matched;
 - cloud web presence was confirmed;
+- the rehydrated cloud copy matched bytes and SHA-256;
 - final validation manifest exists and is hash-matched.
 
 The previous validated encrypted backup remains until a separate multi-version retention policy is approved.
@@ -164,13 +255,14 @@ The end-to-end personal workflow was exercised through:
 - deliberate WSL shutdown;
 - full distro TAR export;
 - TAR listing and SHA-256 generation;
-- interactive AES-encrypted 7z creation;
+- command-line AES-encrypted 7z creation with an interactive password prompt;
 - password-based archive test;
 - encrypted archive SHA-256 reconciliation;
 - off-device file copy;
 - source and destination byte-count comparison;
 - source and destination SHA-256 comparison;
 - web-presence confirmation;
+- cloud-copy rehydration and SHA-256 verification;
 - validation-manifest creation;
 - manifest hash comparison;
 - retention-gated TAR deletion;
@@ -183,7 +275,7 @@ The end-to-end personal workflow was exercised through:
 - No isolated restore rehearsal was performed for this snapshot.
 - Project execution was not validated from a restored distro.
 - External Windows targets referenced by WSL symbolic links are outside distro-export coverage.
-- Cloud web visibility confirms presence, not an independent download-and-hash verification.
+- Cloud web visibility confirms presence only. Rehydration verification depends on the OneDrive client and on the original archive remaining available locally.
 - Password recovery was not tested independently.
 - Fully unattended encryption and retention are intentionally excluded.
 
